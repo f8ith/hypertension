@@ -23,7 +23,7 @@ const items = {
       items: [
         {
           title: "Enrollment",
-          url: "/enrol",
+          url: "/enrollment",
         },
       ],
     },

@@ -22,14 +22,12 @@ const loadUSTOAuth = async (mainWindow: BrowserWindow) => {
   ) => {
     if (event.url.startsWith(UST_PROTOCOL)) {
       event.preventDefault();
-      let codeUrl = new URL(event.url);
-      let code = codeUrl.searchParams.get("code");
+      const codeUrl = new URL(event.url);
+      const code = codeUrl.searchParams.get("code");
 
       const token = await ust.auth.accessToken(code);
-      await UserData.update({ accessToken: token.id_token });
-
       console.log(token);
-      console.log(UserData.get());
+      await UserData.update({ accessToken: token.id_token });
 
       loadUI(mainWindow);
 
@@ -43,6 +41,7 @@ const loadUSTOAuth = async (mainWindow: BrowserWindow) => {
 };
 
 const loadUI = (mainWindow: BrowserWindow) => {
+  initIpc(mainWindow);
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
@@ -72,7 +71,6 @@ const createWindow = () => {
 };
 
 app.on("ready", () => {
-  initIpc();
   createWindow();
 });
 
@@ -86,4 +84,35 @@ app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
+});
+
+app.on("web-contents-created", (_, contents) => {
+  const filter = { urls: ["*://w5.ab.ust.hk/*"] };
+  contents.session.webRequest.onHeadersReceived(filter, (details, callback) => {
+    if (!details.responseHeaders) details.responseHeaders = {};
+    // ignore if the header already exists.
+    if (
+      Object.keys(details.responseHeaders)
+        .map((k) => k.toLowerCase())
+        .includes("access-control-allow-origin")
+    )
+      return;
+
+    if (!details.responseHeaders["access-control-allow-origin"])
+      details.responseHeaders["access-control-allow-origin"] = ["*"];
+    if (
+      details.method === "OPTIONS" &&
+      !details.responseHeaders["access-control-allow-methods"]
+    ) {
+      details.statusLine = "HTTP/1.1 200 OK";
+      details.responseHeaders["access-control-allow-methods"] = [
+        "GET, POST, OPTIONS",
+      ];
+      details.responseHeaders["access-control-allow-headers"] = ["*"];
+    }
+    callback({
+      responseHeaders: details.responseHeaders,
+      statusLine: details.statusLine,
+    });
+  });
 });

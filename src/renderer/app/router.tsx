@@ -1,7 +1,8 @@
 import { createBrowserRouter } from "react-router";
 import DashboardLayout from "@/renderer/components/layouts/dashboard-layout";
-import Enrol from "@/renderer/app/routes/enrol";
+import Enrollment from "@/renderer/app/routes/enrollment";
 import { ErrorBoundary } from "@/renderer/app/routes/error-boundary";
+import FindRoom from "./routes/find-room";
 
 const routeConfig = [
   {
@@ -12,10 +13,17 @@ const routeConfig = [
     },
     children: [
       {
-        path: "enrol",
-        element: <Enrol />,
+        path: "enrollment",
+        element: <Enrollment />,
         handle: {
           crumb: () => "Enrollment",
+        },
+      },
+      {
+        path: "find-room",
+        element: <FindRoom />,
+        handle: {
+          crumb: () => "Find room",
         },
       },
     ],

@@ -15,7 +15,7 @@ export interface StdtClassEnrol {
   stdtID: string;
   userName: string;
   showInstr: YesNo;
-  stdtInfo: StdtInfo[];
+  stdtInfo: StdtInfoClassEnrl[];
 }
 
 export enum YesNo {
@@ -32,6 +32,27 @@ export interface StdtInfo {
   deptShortName: string;
   planCode: string;
   planName: string;
+}
+
+export interface StdtInfoCourseGrade extends StdtInfo {
+  stdtCourseGrade: StdtCourseGrade[];
+}
+
+export interface StdtCourseGrade {
+  crseTakenTerm: string;
+  crseTakenTermName: string;
+  crseCode: string;
+  crseTitle: string;
+  crseEnrlType: string;
+  crseEnrlStatus: string;
+  crseUnitTaken: number;
+  crseUnitEarned: number;
+  crseGrade: string;
+  inclGPA: string;
+  inclGGA: string;
+}
+
+export interface StdtInfoClassEnrl extends StdtInfo {
   studentClassEnrl: StudentClassEnrl[];
   studentClassWaitlist: any[];
 }
@@ -91,4 +112,95 @@ export interface StudentCourseInstructor {
   classMtgNbr: number;
   instrName: string;
   instrEmail: string;
+}
+
+export interface CourseInformation {
+  acadYearFull: string;
+  termCode: string;
+  termName: string;
+  campus: string;
+  campusName: string;
+  campusShortName: string;
+  crseID: string;
+  crsePrefix: string;
+  catalogNbr: string;
+  crseCode: string;
+  careerType: string;
+  acadCareer: string;
+  schoolCode: string;
+  deptCode: string;
+  deptShortName: string;
+  crseTitle: string;
+  minUnits: string;
+  maxUnits: string;
+  crseVector: string;
+  prnVector: string;
+  crseDescr: string;
+  prevCrseCode: string;
+  altCrseCode: string;
+  crsePrerequisite: string;
+  crseCorequisite: string;
+  crseExclusion: string;
+  crseBackgd: string;
+  crseColist: string;
+  crseCrsCmpEqv: string;
+  crseReference: string;
+  courseAttribute: any[];
+  ciloInformation: CiloInformation[];
+}
+
+export interface CiloInformation {
+  crseID: string;
+  termCode: string;
+  ciloSeq: string;
+  ciloDescription: string;
+}
+
+export interface ClassQuota {
+  crseId: string;
+  acadCareer: string;
+  subject: string;
+  catalogNbr: string;
+  crseCode: string;
+  crseDesc: string;
+  longDesc: string;
+  prevCrseCode: string;
+  preReq: string;
+  coReq: string;
+  exclusion: string;
+  credit: number;
+  attributes: any[];
+  classes: UstClass[];
+}
+
+export interface UstClass {
+  section: string;
+  classNbr: number;
+  classType: string;
+  componentType: string;
+  associatedClass: number;
+  remarks: string;
+  enrlCap: number;
+  enrlTot: number;
+  waitTot: number;
+  consent: boolean;
+  classOpen: boolean;
+  reserveCap: any[];
+  schedules: ClassSchedule[];
+}
+
+export interface ClassSchedule {
+  instructors: string[];
+  facilityId: string;
+  venue: string;
+  startDt: string;
+  endDt: string;
+  weekdays: number[];
+  startTime: string;
+  endTime: string;
+}
+
+export interface TermInfo {
+  term: string;
+  termDesc: string;
 }

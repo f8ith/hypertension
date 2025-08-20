@@ -16,6 +16,11 @@ import {
 
 export function AppSidebarHeader() {
   const { isMobile } = useSidebar();
+
+  const onLogOut = async () => {
+    await api.signOut();
+  };
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -41,7 +46,7 @@ export function AppSidebarHeader() {
             side={isMobile ? "bottom" : "right"}
             sideOffset={4}
           >
-            <DropdownMenuItem className="gap-2 p-2">
+            <DropdownMenuItem onClick={() => onLogOut()} className="gap-2 p-2">
               <div className="flex size-6 items-center justify-center rounded-md border bg-background">
                 <LogOut className="size-4" />
               </div>

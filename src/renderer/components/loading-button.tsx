@@ -1,5 +1,5 @@
 import React from "react";
-import { Button, type ButtonProps } from "./ui/button";
+import { Button, type ButtonProps } from "@/renderer/components/ui/button";
 import { Loader2 } from "lucide-react";
 
 type LoadingState = "idle" | "loading" | "finished";

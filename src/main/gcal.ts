@@ -9,7 +9,8 @@ import keys from "@/../credentials.json";
 import UserData from "@/services/user-data";
 import pLimit from "p-limit";
 const redirectUri = "http://127.0.0.1:8000/oauth2callback";
-let oauthRunning: boolean = false;
+
+let oauthRunning = false;
 
 /**
  * Create a new OAuth2Client, and go through the OAuth2 content
@@ -29,7 +30,7 @@ export const getAuthenticatedClient = async (): Promise<OAuth2Client> => {
     );
 
     oauth2Client.on("tokens", (tokens) => {
-      if (tokens.refresh_token) {
+      if (tokens) {
         UserData.update({
           googleCredentials: tokens,
         });
@@ -37,7 +38,7 @@ export const getAuthenticatedClient = async (): Promise<OAuth2Client> => {
     });
 
     const data = UserData.get();
-    if (data.googleCredentials.refresh_token) {
+    if (data.googleCredentials) {
       oauth2Client.setCredentials(data.googleCredentials);
       resolve(oauth2Client);
       return;
@@ -50,14 +51,16 @@ export const getAuthenticatedClient = async (): Promise<OAuth2Client> => {
       access_type: "offline",
       scope: scopes,
       redirect_uri: redirectUri,
+      prompt: "consent",
     });
 
     // Open an http server to accept the oauth callback. In this simple example, the
     // only request to our webserver is to /oauth2callback?code=<code>
     oauthRunning = true;
 
-    let sockets: { [key: number]: Socket } = {},
-      nextSocketId = 0;
+    const sockets: { [key: number]: Socket } = {};
+    let nextSocketId = 0;
+
     const server = http
       .createServer(async (req, res) => {
         try {
@@ -87,7 +90,7 @@ export const getAuthenticatedClient = async (): Promise<OAuth2Client> => {
 
             server.close();
 
-            for (var socketId in sockets) {
+            for (const socketId in sockets) {
               console.log("socket", socketId, "destroyed");
               sockets[socketId].destroy();
             }
@@ -99,14 +102,15 @@ export const getAuthenticatedClient = async (): Promise<OAuth2Client> => {
         }
       })
       .listen(8000, () => {
+        console.log(authorizeUrl);
         shell.openExternal(authorizeUrl);
       });
 
-    server.on("connection", function(socket: Socket) {
-      var socketId = nextSocketId++;
+    server.on("connection", function (socket: Socket) {
+      const socketId = nextSocketId++;
       sockets[socketId] = socket;
 
-      socket.on("close", function() {
+      socket.on("close", function () {
         delete sockets[socketId];
       });
     });
@@ -115,7 +119,6 @@ export const getAuthenticatedClient = async (): Promise<OAuth2Client> => {
 
 /**
  * Lists the next 10 events on the user's primary calendar.
- * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
  */
 export const listEvents = async (auth: OAuth2Client) => {
   const calendar = gCalendar({ version: "v3", auth });

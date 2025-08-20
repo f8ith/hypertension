@@ -17,6 +17,13 @@ const update = async (userData: UserDataProps) => {
   });
 };
 
+const clear = async () => {
+  _userData = {};
+  await fs.promises.writeFile(FILEPATH, JSON.stringify(_userData, null, 2), {
+    flag: "w+",
+  });
+};
+
 let _userData: UserDataProps;
 if (!fs.existsSync(FILEPATH)) fs.writeFileSync(FILEPATH, "{}");
 
@@ -26,4 +33,5 @@ _userData = JSON.parse(file);
 export default {
   get,
   update,
+  clear,
 };
