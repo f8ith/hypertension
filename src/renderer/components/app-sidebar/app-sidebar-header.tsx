@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ChevronsUpDown, GalleryVerticalEnd, LogOut, Plus } from "lucide-react";
+import { ChevronsUpDown, GalleryVerticalEnd, LogOut } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -13,13 +13,33 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/renderer/components/ui/sidebar";
+import { useUstClient } from "@/renderer/hooks/use-ust-client";
+import { StdtEnrolResp } from "@/types";
+import { ust } from "@/lib/hkust";
 
 export function AppSidebarHeader() {
+  const [stdtEnrol, setStdtEnrol] = React.useState<StdtEnrolResp>(null);
   const { isMobile } = useSidebar();
+  const ustClient = useUstClient();
+
 
   const onLogOut = async () => {
     await api.signOut();
   };
+
+  React.useEffect(() => {
+    const fun = async () => {
+      const userdata = await api.getUserData();
+      const data = await ust.auth.requestToken(userdata.ust.id_token);
+
+      const newStdtCourses = await ustClient.enrol.stdt_class_enrl();
+
+      console.log(newStdtCourses);
+      setStdtEnrol(newStdtCourses);
+    };
+
+    fun();
+  }, []);
 
   return (
     <SidebarMenu>
@@ -35,7 +55,9 @@ export function AppSidebarHeader() {
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">hypertension</span>
-                <span className="truncate text-xs">{/* TODO username */}</span>
+                {stdtEnrol && <span className="truncate text-xs">
+                  logged in as {stdtEnrol.userName}
+                </span>}
               </div>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>

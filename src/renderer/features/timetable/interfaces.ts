@@ -1,4 +1,4 @@
-import type { TEventColor } from "@/renderer/calendar/types";
+import type { TEventColor } from "@/renderer/features/timetable/types";
 
 export interface IUser {
   id: string;
@@ -11,6 +11,7 @@ export interface IEvent {
   startDate: string;
   endDate: string;
   title: string;
+  title2: string;
   color: TEventColor;
   description: string;
 }

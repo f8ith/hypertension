@@ -10,9 +10,9 @@ import {
   isAfter,
 } from "date-fns";
 
-import { MonthEventBadge } from "@/renderer/calendar/components/month-view/month-event-badge";
+import { MonthEventBadge } from "@/renderer/features/timetable/components/month-view/month-event-badge";
 
-import type { IEvent } from "@/renderer/calendar/interfaces";
+import type { IEvent } from "@/renderer/features/timetable/interfaces";
 
 interface IProps {
   selectedDate: Date;

@@ -1,6 +1,6 @@
-import { useCalendar } from "@/renderer/calendar/contexts/calendar-context";
+import { useCalendar } from "@/renderer/features/timetable/contexts/calendar-context";
 
-import type { IEvent } from "@/renderer/calendar/interfaces";
+import type { IEvent } from "@/renderer/features/timetable/interfaces";
 
 export function useUpdateEvent() {
   const { setLocalEvents } = useCalendar();

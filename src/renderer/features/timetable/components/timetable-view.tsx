@@ -7,10 +7,10 @@ import {
   areIntervalsOverlapping,
 } from "date-fns";
 
-import { useCalendar } from "@/renderer/calendar/contexts/calendar-context";
+import { useCalendar } from "@/renderer/features/timetable/contexts/calendar-context";
 
-import { EventBlock } from "@/renderer/components/event-block";
-import { CalendarTimeline } from "@/renderer/calendar/components/week-and-day-view/calendar-time-line";
+import { EventBlock } from "@/renderer/features/timetable/components/event-block";
+import { CalendarTimeline } from "@/renderer/features/timetable/components/calendar-time-line";
 
 import { cn } from "@/renderer/lib/utils";
 import {
@@ -18,10 +18,9 @@ import {
   getEventBlockStyle,
   isWorkingHour,
   getVisibleHours,
-} from "@/renderer/calendar/helpers";
+} from "@/renderer/features/timetable/helpers";
 
-import type { IEvent } from "@/renderer/calendar/interfaces";
-import { ScrollArea } from "./ui/scroll-area";
+import type { IEvent } from "@/renderer/features/timetable/interfaces";
 
 interface IProps {
   singleDayEvents: IEvent[];
@@ -29,12 +28,18 @@ interface IProps {
 }
 
 export function TimetableView({ singleDayEvents, onEventClick }: IProps) {
-  const { selectedDate, workingHours, visibleHours } = useCalendar();
+  const {} = useCalendar();
+
+  const visibleHours = { from: 8, to: 22 };
 
   const { hours, earliestEventHour, latestEventHour } = getVisibleHours(
     visibleHours,
     singleDayEvents
   );
+
+  const selectedDate = singleDayEvents[0]
+    ? new Date(singleDayEvents[0].startDate)
+    : new Date();
 
   const weekStart = startOfWeek(selectedDate);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -98,18 +103,12 @@ export function TimetableView({ singleDayEvents, onEventClick }: IProps) {
                   return (
                     <div key={dayIndex} className="relative">
                       {hours.map((hour, index) => {
-                        const isDisabled = !isWorkingHour(
-                          day,
-                          hour,
-                          workingHours
-                        );
-
                         return (
                           <div
                             key={hour}
                             className={cn(
                               "relative",
-                              isDisabled && "bg-calendar-disabled-hour"
+                              false && "bg-calendar-disabled-hour" //TODO: Maybe show Sundays as disabled
                             )}
                             style={{ height: "5vh" }}
                           >

@@ -3,12 +3,12 @@
 import { createContext, useContext, useState } from "react";
 
 import type { Dispatch, SetStateAction } from "react";
-import type { IEvent, IUser } from "@/renderer/calendar/interfaces";
+import type { IEvent, IUser } from "@/renderer/features/timetable/interfaces";
 import type {
   TBadgeVariant,
   TVisibleHours,
   TWorkingHours,
-} from "@/renderer/calendar/types";
+} from "@/renderer/features/timetable/types";
 
 interface ICalendarContext {
   selectedDate: Date;

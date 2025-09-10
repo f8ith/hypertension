@@ -46,6 +46,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.5",
     "@radix-ui/react-dropdown-menu": "^2.1.5",
     "@radix-ui/react-label": "^2.1.1",
@@ -63,7 +64,7 @@
     "date-fns": "^4.1.0",
     "electron-squirrel-startup": "^1.0.1",
     "fuse.js": "^7.1.0",
-    "googleapis": "^144.0.0",
+    "ics": "^3.8.1",
     "lucide-react": "^0.474.0",
     "p-limit": "^6.2.0",
     "react": "^18.3.1",

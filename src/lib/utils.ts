@@ -19,12 +19,6 @@ export function assignFromPartial<T extends {}>(
   return Object.assign(target, ...sources) as T;
 }
 
-export function addDays(date: Date, days: number) {
-  var result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-}
-
 export function toDateString(date: Date) {
   const offset = date.getTimezoneOffset();
   date = new Date(date.getTime() - offset * 60 * 1000);
@@ -39,7 +33,7 @@ export function toICalDateTime(date: Date) {
   const minute = padN(date.getUTCMinutes());
   const second = padN(date.getUTCSeconds());
   return `${year}${month}${day}T${hour}${minute}${second}Z`;
-};
+}
 
 export function padN(str: number, pad = "00", padLeft = true) {
   if (typeof str === "undefined") return pad;

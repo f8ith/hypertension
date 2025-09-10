@@ -1,10 +1,10 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, RouteObject } from "react-router";
 import DashboardLayout from "@/renderer/components/layouts/dashboard-layout";
 import Enrollment from "@/renderer/app/routes/enrollment";
 import { ErrorBoundary } from "@/renderer/app/routes/error-boundary";
 import FindRoom from "./routes/find-room";
 
-const routeConfig = [
+const routeConfig: RouteObject[] = [
   {
     path: "/",
     element: <DashboardLayout />,

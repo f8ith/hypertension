@@ -1,11 +1,14 @@
-import { Credentials } from "google-auth-library";
-
 export interface UserDataProps {
-  accessToken?: string;
-  googleCredentials?: Credentials;
+  ust: {
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+    refresh_token: string;
+    id_token: string;
+  };
 }
 
-export interface StdtClassEnrol {
+export interface StdtEnrolResp {
   status: string;
   message: string;
   errorCode: string;
@@ -54,7 +57,7 @@ export interface StdtCourseGrade {
 
 export interface StdtInfoClassEnrl extends StdtInfo {
   studentClassEnrl: StudentClassEnrl[];
-  studentClassWaitlist: any[];
+  studentClassWaitlist: StudentClassWaitlist[];
 }
 
 export interface StudentClassEnrl {
@@ -72,6 +75,19 @@ export interface StudentClassEnrl {
   studentClassSchedule: StudentClassSchedule[];
   studentFinalExamSchedule: any[];
   studentCourseInstructor: StudentCourseInstructor[];
+}
+
+
+export interface StudentClassWaitlist {
+  termCode: string
+  crseId: string
+  crseCode: string
+  classSections: string[]
+  classes: {
+    classNbr: number
+    classSection: string
+  }[]
+  waitPosition: number
 }
 
 export enum ClassTypeName {
@@ -204,3 +220,13 @@ export interface TermInfo {
   term: string;
   termDesc: string;
 }
+
+export type TDaysInWeek = {
+  mon: 0;
+  tues: 1;
+  wed: 2;
+  thurs: 3;
+  fri: 4;
+  sat: 5;
+  sun: 6;
+};

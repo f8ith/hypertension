@@ -1,16 +1,16 @@
 import { cva } from "class-variance-authority";
 import { format, differenceInMinutes, parseISO } from "date-fns";
 
-import { useCalendar } from "@/renderer/calendar/contexts/calendar-context";
+import { useCalendar } from "@/renderer/features/timetable/contexts/calendar-context";
 
 import { cn } from "@/renderer/lib/utils";
 
-import type { HTMLAttributes } from "react";
-import type { IEvent } from "@/renderer/calendar/interfaces";
+import { useEffect, useMemo, useState, type HTMLAttributes } from "react";
+import type { IEvent } from "@/renderer/features/timetable/interfaces";
 import type { VariantProps } from "class-variance-authority";
 
 const calendarWeekEventCardVariants = cva(
-  "flex select-none flex-col gap-0.5 truncate whitespace-nowrap rounded-md border px-2 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+  "flex select-none flex-col gap-0.5 truncate whitespace-nowrap rounded-md border px-2 py-1.5 text-xs transition hover:scale-125 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
   {
     variants: {
       color: {
@@ -62,7 +62,9 @@ export function EventBlock({ event, className }: IProps) {
   const start = parseISO(event.startDate);
   const end = parseISO(event.endDate);
   const durationInMinutes = differenceInMinutes(end, start);
-  const heightInPixels = (durationInMinutes / 60) * 96 - 8;
+  const [heightInPixels, setHeightInPixels] = useState(
+    (((durationInMinutes / 60) * window.innerHeight) / 100) * 5 - 8
+  );
 
   const color = (
     badgeVariant === "dot" ? `${event.color}-dot` : event.color
@@ -70,7 +72,7 @@ export function EventBlock({ event, className }: IProps) {
 
   const calendarWeekEventCardClasses = cn(
     calendarWeekEventCardVariants({ color, className }),
-    durationInMinutes < 35 && "py-0 justify-center"
+    heightInPixels < 80 && "py-0 justify-center"
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -79,6 +81,20 @@ export function EventBlock({ event, className }: IProps) {
       if (e.currentTarget instanceof HTMLElement) e.currentTarget.click();
     }
   };
+
+  const handleResize = () => {
+    setHeightInPixels(
+      (((durationInMinutes / 60) * window.innerHeight) / 100) * 5 - 8
+    );
+  };
+
+  useEffect(() => {
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   return (
     <div
@@ -100,16 +116,23 @@ export function EventBlock({ event, className }: IProps) {
           </svg>
         )}
 
-        <p className="truncate font-semibold">{event.title}</p>
+        <div className="flex flex-row w-full">
+          <p className="truncate font-semibold">{event.title}</p>
+          {event.title2 && (
+            <p className="truncate ml-auto font-semibold">{event.title2}</p>
+          )}
+        </div>
       </div>
 
-      {durationInMinutes > 25 && (
+      {heightInPixels > 40 && (
         <p>
           {format(start, "h:mm a")} - {format(end, "h:mm a")}
         </p>
       )}
 
-      <p className="truncate text-wrap">{event.description}</p>
+      {heightInPixels > 70 && (
+        <p className="truncate text-wrap">{event.description}</p>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useState } from "react";
+import React, { ChangeEvent, useContext, useEffect, useMemo, useState } from "react";
 import { Replace, Upload } from "lucide-react";
 import {
   LoadingState,
@@ -6,9 +6,12 @@ import {
 } from "@/renderer/components/loading-button";
 import {
   ClassQuota,
-  StdtClassEnrol,
+  TDaysInWeek,
+  StdtEnrolResp,
   StdtInfoClassEnrl,
   TermInfo,
+  StudentClassWaitlist,
+  UstClass,
 } from "@/types";
 import {
   Card,
@@ -18,9 +21,9 @@ import {
   CardTitle,
 } from "@/renderer/components/ui/card";
 import { Button } from "@/renderer/components/ui/button";
-import { CalendarProvider } from "@/renderer/calendar/contexts/calendar-context";
-import { IEvent } from "@/renderer/calendar/interfaces";
-import { TimetableView } from "@/renderer/components/timetable-view";
+import { CalendarProvider } from "@/renderer/features/timetable/contexts/calendar-context";
+import { IEvent } from "@/renderer/features/timetable/interfaces";
+import { TimetableView } from "@/renderer/features/timetable/components/timetable-view";
 import {
   Tabs,
   TabsContent,
@@ -28,22 +31,23 @@ import {
   TabsTrigger,
 } from "@/renderer/components/ui/tabs";
 import { Separator } from "@/renderer/components/ui/separator";
-import React from "react";
 import { ScrollArea } from "@/renderer/components/ui/scroll-area";
-import { startOfWeek } from "date-fns";
-import { ust } from "@/lib/hkust";
 import {
   Select,
   SelectValue,
   SelectTrigger,
   SelectContent,
   SelectGroup,
-  SelectLabel,
   SelectItem,
 } from "@/renderer/components/ui/select";
 import { Progress } from "@/renderer/components/ui/progress";
 import { Input } from "@/renderer/components/ui/input";
 import Fuse, { FuseResult } from "fuse.js";
+import { CourseCard } from "@/renderer/features/enrollment/components/course-card";
+import { ICalExportButton } from "@/renderer/features/enrollment/components/ical-export-button";
+import { useUstClient } from "@/renderer/hooks/use-ust-client";
+import { DaysInWeek } from "@/constants";
+import { addDays } from "date-fns";
 
 const fuseOptions = {
   threshold: 0.3,
@@ -51,95 +55,134 @@ const fuseOptions = {
 };
 
 export default function Enrol() {
-  //const [client, setClient] = useState();
   const [progress, setProgress] = useState(13);
-  const [gCalLoadingState, setGCalLoadingState] =
-    useState<LoadingState>("idle");
   const [processCartState, setProcessCartState] =
     useState<LoadingState>("idle");
   const [enrollments, setEnrollments] = useState<StdtInfoClassEnrl>();
   const [courseQuota, setCourseQuota] = useState<ClassQuota[]>([]);
-  const [filteredQuota, setFilteredQuota] = useState<FuseResult<ClassQuota>[]>(
-    []
-  );
   const [terms, setTerms] = useState<TermInfo[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<StdtClassEnrol>();
+  const [hoveredSection, setHoveredSection] = useState<UstClass>(null);
+  const [selectedCourse, setSelectedSource] = useState<ClassQuota>(null);
   const [selectedTerm, setSelectedTerm] = useState<string>();
   const [searchString, setSearchString] = useState<string>("");
-  const [events, setEvents] = useState<IEvent[]>([]);
+
+  const ustClient = useUstClient();
 
   useEffect(() => {
     const setupData = async () => {
-      const ustClient = ust.getContext((await api.userData()).accessToken);
       const _terms = await ustClient.courses.terms();
+
       setProgress(47);
 
       setTerms(_terms);
       setSelectedTerm(_terms[0].term);
       setProgress(90);
-      setEnrollments(await ustClient.enrol.stdt_class_enrl());
+
+      const stdt_enrol = await ustClient.enrol.stdt_class_enrl();
+      setEnrollments(stdt_enrol.stdtInfo[0]);
       setProgress(100);
     };
 
     setupData();
   }, []);
 
-  useEffect(() => {
+  const enrollEvents = useMemo(() => {
     if (!enrollments) return;
-    let id = 0;
-    const enrollmentArr = enrollments.studentClassEnrl;
-    const newEvents = enrollmentArr.flatMap((e) => {
-      return e.studentClassSchedule.map((scheduleItem) => {
-        if (scheduleItem.classStartTime) {
-          id++;
-          return {
-            id: id,
-            startDate: new Date(scheduleItem.classStartDate).toISOString(),
-            endDate: new Date(scheduleItem.classStartDate).toISOString(),
-            title: e.crseCode,
-            color: "red",
-            description: e.crseTitle,
-          } as IEvent;
+    return enrollments.studentClassEnrl.flatMap((e) => {
+      return e.studentClassSchedule.flatMap((scheduleItem) => {
+        const ret: IEvent[] = [];
+        let day: keyof TDaysInWeek;
+        for (day in DaysInWeek) {
+          if (scheduleItem[day] == "Y" && scheduleItem.classStartTime) {
+            const startDate = addDays(
+              new Date(
+                scheduleItem.classStartDate + " " + scheduleItem.classStartTime
+              ),
+              DaysInWeek[day]
+            );
+            const endDate = addDays(
+              new Date(
+                scheduleItem.classStartDate + " " + scheduleItem.classEndTime
+              ),
+              DaysInWeek[day]
+            );
+            ret.push({
+              id: e.classNbr,
+              startDate: startDate.toISOString(),
+              endDate: endDate.toISOString(),
+              title: e.crseCode,
+              title2: e.classSection,
+              color: "red",
+              description: e.crseTitle,
+            } as IEvent);
+          }
         }
+
+        // TODO: We assume classStartDate is always a monday. Make this more robust
+        return ret
       });
     });
-    setEvents(newEvents);
   }, [enrollments]);
+
+  const events: IEvent[] = useMemo(() => {
+    const ret = [];
+
+    if (!enrollEvents)
+      return null
+
+    ret.push(...enrollEvents)
+
+    if (hoveredSection && selectedCourse) {
+      // TODO: Do not highlight if course is already enrolled
+      ret.push(...hoveredSection.schedules.flatMap((scheduleItem) => {
+        const hoveredEvents: IEvent[] = [];
+        for (const day of scheduleItem.weekdays) {
+          const startDate = addDays(
+            new Date(
+              scheduleItem.startDt + " " + scheduleItem.startTime
+            ),
+            day - 1
+          );
+          const endDate = addDays(
+            new Date(
+              scheduleItem.startDt + " " + scheduleItem.endTime
+            ),
+            day - 1
+          );
+          hoveredEvents.push({
+            id: hoveredSection.classNbr,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            title: selectedCourse.crseCode,
+            title2: hoveredSection.section,
+            color: "yellow",
+            description: selectedCourse.crseDesc
+          } as IEvent);
+        }
+        return hoveredEvents;
+      }))
+    }
+
+    return ret
+  }, [enrollEvents, hoveredSection])
 
   useEffect(() => {
     const fun = async () => {
-      const ustClient = ust.getContext((await api.userData()).accessToken);
-
       setCourseQuota(await ustClient.courses.class_quota(selectedTerm));
     };
 
     fun();
   }, [selectedTerm]);
 
-  useEffect(() => {
+  const filteredQuota = useMemo(() => {
     const fuse = new Fuse(courseQuota, fuseOptions);
 
-    setFilteredQuota(fuse.search(searchString));
+    return fuse.search(searchString);
   }, [courseQuota, searchString]);
 
-  const items = [
-    {
-      code: "COMP 1021",
-      title: "Introduction to programming in Python",
-      description: "hello world",
-    },
-  ];
-  const onExportToGCal = async () => {
-    try {
-      setGCalLoadingState("loading");
-      await api.gcal.export();
-      setGCalLoadingState("finished");
-    } catch (e) {
-      console.log(e);
-    }
+  const onEventClick = (eventId: number) => {
+    console.log(`${eventId} clicked`);
   };
-
-  const onEventClick = (eventId: number) => {};
 
   const onSearchStringChange: React.EventHandler<
     ChangeEvent<HTMLInputElement>
@@ -150,6 +193,7 @@ export default function Enrol() {
   if (progress != 100) {
     return (
       <div className="flex flex-1 flex-col gap-4 p-4 justify-center items-center">
+        <h1 className="font-semibold">Increasing your blood pressure...</h1>
         <Progress value={progress} className="flex w-[60%]" />
       </div>
     );
@@ -184,65 +228,84 @@ export default function Enrol() {
 
           <LoadingButton
             icon={<Replace />}
-            onClick={() => {}}
             loadingState={processCartState}
           >
             Automatically add/swap classes
           </LoadingButton>
-          <LoadingButton
-            icon={<Upload />}
-            onClick={onExportToGCal}
-            loadingState={gCalLoadingState}
-          >
-            Export to Google Calendar
-          </LoadingButton>
+          <ICalExportButton />
         </div>
         <TabsContent value="list">
-          <div className="flex flex-row">
-            {enrollments ? (
-              <div>
-                <h3 className="text-sidebar-foreground/70 pb-4 uppercase font-medium outline-none text-sm">
-                  Enrolled / Waitlisted
-                </h3>
-                <div className="grid grid-flow-col auto-cols-auto gap-4">
-                  {enrollments.studentClassEnrl.map((enrollment) => {
-                    if (enrollment.enrlComponent === "N") {
-                      return;
-                    }
-                    return (
-                      <Card key={enrollment.crseCode}>
-                        <CardHeader>
-                          <CardTitle className="md:text-base text-sm">
-                            {enrollment.crseCode}
-                          </CardTitle>
-                          <CardDescription className="md:text-base">
-                            {enrollment.classSection}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardFooter className="flex justify-between gap-4">
-                          <Button variant="outline">Drop</Button>
-                          <Button>Swap</Button>
-                        </CardFooter>
-                      </Card>
-                    );
-                  })}
+          <div className="flex flex-col gap-8">
+            {enrollments && (
+              <>
+                <div>
+                  <h3 className="text-sidebar-foreground/70 pb-4 uppercase font-medium outline-none text-sm">
+                    Enrolled
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 gap-4">
+                    {enrollments.studentClassEnrl.map((enrollment) => {
+                      if (enrollment.enrlComponent === "N") {
+                        return;
+                      }
+                      return (
+                        <Card key={enrollment.crseCode}>
+                          <CardHeader>
+                            <CardTitle className="md:text-base text-sm">
+                              {enrollment.crseCode}
+                            </CardTitle>
+                            <CardDescription className="md:text-base">
+                              {enrollment.classSection}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardFooter className="flex justify-between gap-4">
+                            <Button variant="outline">Drop</Button>
+                            <Button>Swap</Button>
+                          </CardFooter>
+                        </Card>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <></>
+
+                <div>
+                  <h3 className="text-sidebar-foreground/70 pb-4 uppercase font-medium outline-none text-sm">
+                    Waitlisted
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {enrollments.studentClassWaitlist.map((enrollment) => {
+                      return (
+                        <Card key={enrollment.crseCode}>
+                          <CardHeader>
+                            <CardTitle className="md:text-base text-sm">
+                              {enrollment.crseCode}
+                            </CardTitle>
+                            <CardDescription className="md:text-base">
+                              {enrollment.classSections.join(", ")}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardFooter className="flex justify-between gap-4">
+                            Position: {enrollment.waitPosition}
+                            <Button variant="outline">Drop</Button>
+                          </CardFooter>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </TabsContent>
         <TabsContent className="flex flex-row gap-4" value="timetable">
-          <div className="w-3/4">
+          {events && <div className="w-3/5 md:w-3/4">
             <CalendarProvider events={events}>
               <TimetableView
                 singleDayEvents={events}
                 onEventClick={onEventClick}
               />
             </CalendarProvider>
-          </div>
-          <div className="border-solid rounded-md w-1/4">
+          </div>}
+          <div className="border-solid rounded-md w-2/5 md:w-1/4">
             <div className="flex flex-col gap-4">
               <div>
                 <Input
@@ -257,18 +320,7 @@ export default function Enrol() {
               <ScrollArea className="w-full h-[70vh]">
                 {filteredQuota.map(({ item }, index) => (
                   <React.Fragment key={index}>
-                    <div className="flex flex-row items-center gap-8 px-4 py-5">
-                      <div className="order-2 flex items-center gap-2 md:order-none">
-                        <div className="flex flex-col gap-1">
-                          <h3 className="font-semibold">
-                            {item.subject} {item.catalogNbr}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            {item.crseDesc}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                    <CourseCard selectedCourse={selectedCourse} setSelectedCourse={setSelectedSource} setSection={setHoveredSection} term={selectedTerm} course={item} />
                     <Separator />
                   </React.Fragment>
                 ))}

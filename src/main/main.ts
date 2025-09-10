@@ -5,18 +5,25 @@ import {
 } from "electron";
 import path from "node:path";
 import started from "electron-squirrel-startup";
-import { UST_PROTOCOL, OAUTH_URL } from "../constants";
+import { UST_PROTOCOL } from "@/constants";
 import { ust } from "@/lib/hkust";
-import UserData from "@/services/user-data";
 import { initIpc } from "@/main/ipc";
+import UserData from "@/services/user-data";
+import { constructUSTOAuth } from "./hkust";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
   app.quit();
 }
 
-const loadUSTOAuth = async (mainWindow: BrowserWindow) => {
-  mainWindow.loadURL(OAUTH_URL);
+export const loadUSTOAuth = async (callback: () => Promise<void>) => {
+  const win = new BrowserWindow({
+    width: 480,
+    height: 320,
+  });
+
+  const { url, codeVerifier } = constructUSTOAuth();
+  win.loadURL(url);
   const handleOAuthRedirect = async (
     event: Electron.Event<WebContentsWillRedirectEventParams>
   ) => {
@@ -25,22 +32,23 @@ const loadUSTOAuth = async (mainWindow: BrowserWindow) => {
       const codeUrl = new URL(event.url);
       const code = codeUrl.searchParams.get("code");
 
-      const token = await ust.auth.accessToken(code);
-      console.log(token);
-      await UserData.update({ accessToken: token.id_token });
+      const token = await ust.auth.accessToken(code, codeVerifier);
+      UserData.update({ ust: token });
 
-      loadUI(mainWindow);
+      await callback();
 
-      mainWindow.webContents.removeListener(
+      win.webContents.removeListener(
         "will-redirect",
         handleOAuthRedirect
       );
+
+      win.close();
     }
   };
-  mainWindow.webContents.addListener("will-redirect", handleOAuthRedirect);
+  win.webContents.addListener("will-redirect", handleOAuthRedirect);
 };
 
-const loadUI = (mainWindow: BrowserWindow) => {
+export const loadUI = (mainWindow: BrowserWindow) => {
   initIpc(mainWindow);
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -51,27 +59,34 @@ const loadUI = (mainWindow: BrowserWindow) => {
   }
 };
 
-const createWindow = () => {
+export const createWindow = async () => {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+  const win = new BrowserWindow({
+    width: 1200,
+    height: 800,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
   });
 
-  const userData = UserData.get();
+  loadUI(win);
 
-  if ("accessToken" in userData) {
-    loadUI(mainWindow);
-  } else {
-    loadUSTOAuth(mainWindow);
-  }
+  return win;
 };
 
-app.on("ready", () => {
-  createWindow();
+app.on("ready", async () => {
+  const savedToken = UserData.get().ust;
+
+  if (!savedToken) {
+    loadUSTOAuth(async () => {
+      await createWindow();
+    });
+  } else {
+    //const newToken = await ust.auth.refreshToken(savedToken.refresh_token);
+
+    await ust.auth.requestToken(savedToken.id_token);
+    await createWindow();
+  }
 });
 
 app.on("window-all-closed", () => {
@@ -87,8 +102,25 @@ app.on("activate", () => {
 });
 
 app.on("web-contents-created", (_, contents) => {
-  const filter = { urls: ["*://w5.ab.ust.hk/*"] };
-  contents.session.webRequest.onHeadersReceived(filter, (details, callback) => {
+  const outFilter = { urls: ["*://login.microsoftonline.com/*"] };
+  contents.session.webRequest.onBeforeSendHeaders(outFilter, (details, callback) => {
+    delete details.requestHeaders["Origin"]
+    delete details.requestHeaders["Referer"]
+    delete details.requestHeaders["Sec-Ch-Ua"]
+    delete details.requestHeaders["Sec-Ch-Ua-Mobile"]
+    delete details.requestHeaders["Sec-Ch-Ua-Platform"]
+    delete details.requestHeaders["Sec-Fetch-Dest"]
+    delete details.requestHeaders["Sec-Fetch-Mode"]
+    delete details.requestHeaders["Sec-Fetch-Site"]
+    details.referrer = UST_PROTOCOL;
+
+    callback({
+      requestHeaders: details.requestHeaders
+    });
+  });
+
+  const inFilter = { urls: ["*://w5.ab.ust.hk/*", "*://login.microsoftonline.com/*"] };
+  contents.session.webRequest.onHeadersReceived(inFilter, (details, callback) => {
     if (!details.responseHeaders) details.responseHeaders = {};
     // ignore if the header already exists.
     if (
